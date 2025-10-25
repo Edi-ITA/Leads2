@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leads Management Dashboard</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+        /* Custom scrollbar for table container on wider screens */
+        .table-container::-webkit-scrollbar {
+            height: 8px;
+        }
+        .table-container::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 4px;
+        }
+        
+        /* Language button styles for active state */
+        .lang-btn {
+            transition: all 0.15s ease-in-out;
+            min-width: 40px;
+        }
+        .lang-btn.is-selected {
+            background-color: #10b981; /* green-500 */
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.4), 0 2px 4px -2px rgba(16, 185, 129, 0.4);
+        }
+        
+        /* Initially hide the app wrapper to prevent FOUC until auth state is known */
+        #app-wrapper {
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        #app-wrapper.loaded {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    
+    <!-- Main Application Wrapper -->
+    <div id="app-wrapper">
+        <!-- Header and User Info -->
+        <header class="mb-8 p-4 bg-white shadow-md rounded-xl flex flex-col md:flex-row justify-between items-center">
+            <h1 class="text-3xl font-bold text-gray-800 mb-4 md:mb-0">Leads Dashboard</h1>
+            
+            <!-- Navigation Buttons -->
+            <nav class="flex space-x-4 mb-4 md:mb-0">
+                <button onclick="showView('leadsTableView')" id="navLeads" 
+                        class="py-2 px-4 rounded-lg text-sm font-medium bg-indigo-500 text-white hover:bg-indigo-600 transition duration-300 shadow-md">
+                    View Leads
+                </button>
+                <button onclick="showView('addLeadView'); resetForm();" id="navAddLead" 
+                        class="py-2 px-4 rounded-lg text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300 transition duration-300 shadow-md">
+                    Add New Lead
+                </button>
+            </nav>
+
+            <div class="text-sm text-gray-600">
+                <p>Logged in User ID:</p>
+                <p id="userIdDisplay" class="font-mono text-xs bg-gray-100 p-1 rounded"></p>
+            </div>
+        </header>
+
+        <!-- Main Content Container -->
+        <main class="max-w-7xl mx-auto">
+            
+            <!-- ============================================== -->
+            <!-- VIEW 1: ADD/EDIT LEAD FORM -->
+            <!-- ============================================== -->
+            <section id="addLeadView" class="hidden">
+                <div class="max-w-2xl mx-auto bg-white p-6 shadow-xl rounded-xl">
+                    <h2 id="formTitle" class="text-2xl font-semibold text-gray-700 mb-6">Add New Lead</h2>
+                    <form id="leadForm" class="space-y-4">
+                        
+                        <input type="hidden" id="leadId">
+
+                        <div>
+                            <label for="fullName" class="block text-sm font-medium text-gray-700">Full Name</label>
+                            <input type="text" id="fullName" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-green-500 focus:border-green-500">
+                        </div>
+                        
+                        <div>
+                            <label for="address" class="block text-sm font-medium text-gray-700">Address</label>
+                            <input type="text" id="address" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-green-500 focus:border-green-500">
+                        </div>
+
+                        <!-- Row 1: House No. and Post Code -->
+                        <div class="flex space-x-4">
+                            <div class="flex-1">
+                                <label for="houseNumber" class="block text-sm font-medium text-gray-700">House No.</label>
+                                <input type="text" id="houseNumber" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-green-500 focus:border-green-500">
+                            </div>
+                            <div class="flex-1">
+                                <label for="postCode" class="block text-sm font-medium text-gray-700">Post Code (4 digits)</label>
+                                <input type="text" id="postCode" required maxlength="4" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-green-500 focus:border-green-500">
+                            </div>
+                        </div>
+
+                        <!-- Row 2: Kanton (Auto-filled) and Place/City -->
+                        <div class="flex space-x-4">
+                            <div class="flex-1">
+                                <label for="kanton" class="block text-sm font-medium text-gray-700">Kanton</label>
+                                <input type="text" id="kanton" readonly placeholder="Auto-filled from Post Code" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-gray-100 text-gray-600 cursor-default">
+                            </div>
+                            <div class="flex-1">
+                                <label for="place" class="block text-sm font-medium text-gray-700">Place/City</label>
+                                <input type="text" id="place" readonly placeholder="Auto-filled from Post Code" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-gray-100 text-gray-600 cursor-default">
+                            </div>
+                        </div>
+                        
+                        <!-- Birth Date -->
+                        <div>
+                            <label for="birthDate" class="block text-sm font-medium text-gray-700">Birth Date</label>
+                            <input type="date" id="birthDate" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-green-500 focus:border-green-500">
+                        </div>
+                        
+                        <!-- Insurance Company (KK) -->
+                        <div>
+                            <label for="kk" class="block text-sm font-medium text-gray-700">Insurance Co. (KK)</label>
+                            <select id="kk" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-green-500 focus:border-green-500">
+                                <option value="" disabled selected>Select Insurance Company</option>
+                                <option value="Agrisano">Agrisano</option>
+                                <option value="Aquilana">Aquilana</option>
+                                <option value="Assura">Assura</option>
+                                <option value="Atupri">Atupri</option>
+                                <option value="Avenir">Avenir</option>
+                                <option value="AXA">AXA</option>
+                                <option value="Concordia">Concordia</option>
+                                <option value="CSS">CSS</option>
+                                <option value="EGK">EGK-Gesundheitskasse (EGK)</option>
+                                <option value="G.M">Groupe Mutuel (G.M)</option>
+                                <option value="Helsana">Helsana</option>
+                                <option value="KPT">KPT</option>
+                                <option value="Mutuel Assurance">Mutuel Assurance</option>
+                                <option value="ÖKK">ÖKK</option>
+                                <option value="Philos">Philos</option>
+                                <option value="Sana 24">Sana 24</option>
+                                <option value="Sanitas">Sanitas</option>
+                                <option value="Swica">Swica</option>
+                                <option value="Sympany">Sympany</option>
+                                <option value="Visana">Visana</option>
+                                <option value="Vivacare">Vivacare</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="medicalCondition" class="block text-sm font-medium text-gray-700">Medical Condition</label>
+                            <select id="medicalCondition" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-green-500 focus:border-green-500">
+                                <option value="Healthy">Healthy</option>
+                                <option value="Not Healthy">Not Healthy</option>
+                            </select>
+                        </div>
+
+                        <!-- Languages Buttons -->
+                        <div class="pt-4 border-t border-gray-200">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Client Languages</label>
+                            <div id="languageCheckboxes" class="flex flex-wrap gap-2 text-sm">
+                                <!-- Language buttons will be dynamically inserted here -->
+                            </div>
+                        </div>
+
+                        <!-- Action Button -->
+                        <button type="submit" id="submitButton" class="w-full py-2 px-4 border border-transparent rounded-lg shadow-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-300">
+                            <span id="buttonText">Add Lead</span>
+                        </button>
+                        <button type="button" onclick="showView('leadsTableView'); resetForm();" class="w-full py-2 px-4 border border-gray-300 rounded-lg shadow-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition duration-300">
+                            Cancel
+                        </button>
+
+                    </form>
+                    <div id="formStatus" class="mt-4 p-2 text-center rounded-lg text-sm hidden"></div>
+                </div>
+            </section>
+
+            <!-- ============================================== -->
+            <!-- VIEW 2: CURRENT LEADS TABLE (Visible by default) -->
+            <!-- ============================================== -->
+            <section id="leadsTableView">
+                <div class="bg-white p-6 shadow-xl rounded-xl">
+                    <h2 class="text-2xl font-semibold text-gray-700 mb-6">Current Leads</h2>
+                    
+                    <div id="loadingIndicator" class="text-center text-gray-500 py-10">Initializing application and checking authentication...</div>
+
+                    <!-- Table Container (Horizontal Scroll) -->
+                    <div class="table-container overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <!-- Core Columns: Only the 4 requested columns + Actions are displayed now -->
+                                    <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Full Name</th>
+                                    <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kanton</th>
+                                    <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Birth Date</th>
+                                    <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">KK</th> 
+                                    <!-- Action Column -->
+                                    <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leadsTableBody" class="bg-white divide-y divide-gray-200">
+                                <!-- Lead rows will be injected here by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div id="noLeadsMessage" class="hidden text-center text-gray-500 mt-4 p-4 border border-dashed rounded-lg">No leads found. Click 'Add New Lead' to create one!</div>
+
+                </div>
+            </section>
+
+            <!-- ============================================== -->
+            <!-- VIEW 3: EXPANDED LEAD DETAIL PAGE -->
+            <!-- ============================================== -->
+            <section id="expandedLeadView" class="hidden">
+                <div class="max-w-3xl mx-auto bg-white p-8 shadow-xl rounded-xl">
+                    <h2 id="expandedLeadName" class="text-3xl font-bold text-gray-800 mb-6">Lead Details</h2>
+                    
+                    <div class="space-y-4">
+                        <!-- Back Button -->
+                        <button onclick="showView('leadsTableView')" class="flex items-center text-indigo-600 hover:text-indigo-800 font-medium mb-6">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z" clip-rule="evenodd" />
+                            </svg>
+                            Back to Leads List
+                        </button>
+
+                        <!-- Detailed Info Grid -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 border border-gray-200 rounded-lg">
+                            <!-- Column 1 -->
+                            <div>
+                                <p class="text-sm font-medium text-gray-500">Address</p>
+                                <p id="detailAddress" class="text-gray-900 font-semibold"></p>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-500">Post Code / Place</p>
+                                <p id="detailPostCodePlace" class="text-gray-900 font-semibold"></p>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-500">Kanton</p>
+                                <p id="detailKanton" class="text-purple-600 font-bold"></p>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-500">Birth Date</p>
+                                <p id="detailBirthDate" class="text-gray-900 font-semibold"></p>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-500">Insurance Co. (KK)</p>
+                                <p id="detailKK" class="text-blue-600 font-bold"></p>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-500">Medical Condition</p>
+                                <p id="detailMedical" class="text-gray-900 font-semibold"></p>
+                            </div>
+                        </div>
+
+                        <!-- Languages Section (Full Width) -->
+                        <div class="pt-4 border-t border-gray-200 mt-6">
+                            <p class="text-lg font-semibold text-gray-700 mb-3">Client Languages</p>
+                            <div id="detailLanguages" class="flex flex-wrap gap-2">
+                                <!-- Language chips will be inserted here -->
+                            </div>
+                        </div>
+
+                        <!-- Edit Button -->
+                        <div class="pt-4 border-t border-gray-200 mt-6 flex justify-end">
+                            <button id="detailEditButton" 
+                                    class="py-2 px-4 border border-transparent rounded-lg shadow-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-300">
+                                Edit Lead Details
+                            </button>
+                        </div>
+                        
+                    </div>
+                </div>
+            </section>
+        </main>
+        
+        <!-- ============================================== -->
+        <!-- DELETE CONFIRMATION MODAL -->
+        <!-- ============================================== -->
+        <div id="deleteModal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+            <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <!-- Background overlay -->
+                <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+
+                <!-- Modal Panel -->
+                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+                <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                    <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                        <div class="sm:flex sm:items-start">
+                            <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                                <!-- Heroicon name: outline/exclamation -->
+                                <svg class="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                                <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                                    Delete Lead
+                                </h3>
+                                <div class="mt-2">
+                                    <p class="text-sm text-gray-500">
+                                        Are you sure you want to delete the lead for <span id="modalLeadName" class="font-bold text-gray-700"></span>? This action cannot be undone.
+                                    </p>
+                                    <input type="hidden" id="modalLeadId">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                        <button type="button" onclick="confirmDelete()"
+                                class="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 sm:ml-3 sm:w-auto sm:text-sm">
+                            Delete
+                        </button>
+                        <button type="button" onclick="closeDeleteModal()"
+                                class="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:w-auto sm:text-sm">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logout button for completeness -->
+        <div class="mt-8 text-center" id="logoutButtonContainer">
+            <button onclick="logout()" class="text-red-500 hover:text-red-700 text-sm font-medium transition duration-150">
+                Log Out
+            </button>
+        </div>
+    </div>
+    
+    <!-- ============================================== -->
+    <!-- VIEW 4: LOGGED OUT MESSAGE -->
+    <!-- ============================================== -->
+    <section id="loggedOutView" class="hidden fixed inset-0 z-50 bg-gray-50 flex items-center justify-center p-4">
+        <div class="text-center bg-white p-10 rounded-xl shadow-2xl max-w-md w-full">
+            <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-16 w-16 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <h2 class="text-3xl font-bold text-gray-800 mt-4 mb-2">You Have Logged Out</h2>
+            <p class="text-gray-600 mb-6">
+                Your session has been securely closed or failed to initialize. To access the Leads Dashboard again, please refresh the page to attempt re-authentication.
+            </p>
+            <button onclick="window.location.reload()" 
+                    class="w-full py-3 px-4 rounded-lg shadow-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-300">
+                Refresh to Sign In
+            </button>
+        </div>
+    </section>
+
+    <!-- Firebase and Application Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"; // Optional logging
+
+        // --- GLOBAL VARIABLES (Provided by Canvas Environment) ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-leads-app';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; 
+
+        let db;
+        let auth;
+        let userId = null;
+        let leadsCollectionRef = null;
+        let isAuthReady = false; 
+        let unsubscribeLeads = null; 
+
+        // UI Element References
+        const form = document.getElementById('leadForm');
+        const formTitle = document.getElementById('formTitle');
+        const submitButton = document.getElementById('submitButton');
+        const buttonText = document.getElementById('buttonText');
+        const statusDiv = document.getElementById('formStatus');
+        const tableBody = document.getElementById('leadsTableBody');
+        const userIdDisplay = document.getElementById('userIdDisplay');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const noLeadsMessage = document.getElementById('noLeadsMessage');
+        const postCodeInput = document.getElementById('postCode');
+        const kantonInput = document.getElementById('kanton');
+        const placeInput = document.getElementById('place');
+        const languageCheckboxesDiv = document.getElementById('languageCheckboxes');
+        
+        // View containers and navigation buttons
+        const appWrapper = document.getElementById('app-wrapper');
+        const leadsTableView = document.getElementById('leadsTableView');
+        const addLeadView = document.getElementById('addLeadView');
+        const expandedLeadView = document.getElementById('expandedLeadView'); 
+        const loggedOutView = document.getElementById('loggedOutView');
+        const navLeads = document.getElementById('navLeads');
+        const navAddLead = document.getElementById('navAddLead');
+
+        // Detail view placeholders 
+        const expandedLeadName = document.getElementById('expandedLeadName');
+        const detailEditButton = document.getElementById('detailEditButton');
+        
+        // Modal elements
+        const deleteModal = document.getElementById('deleteModal');
+
+        // --- VIEW SWITCHING LOGIC ---
+        window.showView = (viewId) => {
+            // Hide all standard views first
+            leadsTableView.classList.add('hidden');
+            addLeadView.classList.add('hidden');
+            expandedLeadView.classList.add('hidden'); 
+            deleteModal.classList.add('hidden'); 
+            
+            // Handle visibility of the main app container vs. the logged out page
+            if (viewId === 'loggedOutView') {
+                appWrapper.classList.add('hidden');
+                loggedOutView.classList.remove('hidden');
+            } else {
+                appWrapper.classList.remove('hidden');
+                loggedOutView.classList.add('hidden');
+                appWrapper.classList.add('loaded'); // Mark app as loaded once authenticated state is known
+            }
+
+            // Reset nav buttons appearance
+            navLeads.classList.remove('bg-indigo-500', 'text-white', 'bg-gray-200', 'text-gray-700');
+            navAddLead.classList.remove('bg-indigo-500', 'text-white', 'bg-gray-200', 'text-gray-700');
+            
+            // Show selected view and update navigation buttons
+            if (viewId === 'leadsTableView') {
+                leadsTableView.classList.remove('hidden');
+                navLeads.classList.add('bg-indigo-500', 'text-white');
+                navAddLead.classList.add('bg-gray-200', 'text-gray-700');
+            } else if (viewId === 'addLeadView') {
+                addLeadView.classList.remove('hidden');
+                navAddLead.classList.add('bg-indigo-500', 'text-white');
+                navLeads.classList.add('bg-gray-200', 'text-gray-700');
+            } else if (viewId === 'expandedLeadView') {
+                expandedLeadView.classList.remove('hidden');
+                navLeads.classList.add('bg-gray-200', 'text-gray-700');
+                navAddLead.classList.add('bg-gray-200', 'text-gray-700');
+            }
+        }
+        
+        // --- LANGUAGE DEFINITIONS & KANTON MAPS (unchanged) ---
+
+        const LANGUAGE_LIST = [
+            { code: 'DE', name: 'Deutsch' },
+            { code: 'FR', name: 'Francuzish (French)' },
+            { code: 'IT', name: 'Italian' },
+            { code: 'EN', name: 'English' },
+            { code: 'BHS', name: 'BiH-Srb-Cro' },
+            { code: 'AL', name: 'Albanian' },
+            { code: 'PT', name: 'Portuges' },
+            { code: 'PL', name: 'Polish' },
+            { code: 'TR', name: 'Turkish' },
+        ];
+        
+        const KANTON_MAP = {
+            10: 'VD (Vaud)', 11: 'VD (Vaud)', 12: 'GE (Genève)', 13: 'VD (Vaud)', 14: 'VD / FR', 15: 'VD (Vaud)', 16: 'VD / FR', 17: 'FR (Fribourg)', 18: 'VD / VS', 19: 'VS (Valais)', 20: 'NE (Neuchâtel)', 21: 'NE / BE', 22: 'NE (Neuchâtel)', 23: 'JU / BE', 24: 'JU (Jura)', 25: 'BE (Bern)', 26: 'BE (Bern)', 27: 'BE / JU', 28: 'JU (Jura)', 29: 'JU (Jura)', 30: 'BE (Bern)', 31: 'BE (Bern)', 32: 'BE / FR', 33: 'BE (Bern)', 34: 'BE (Bern)', 35: 'BE (Bern)', 36: 'BE (Bern)', 37: 'BE (Bern)', 38: 'BE (Bern)', 39: 'VS (Valais)', 40: 'BS (Basel-Stadt)', 41: 'BL (Basel-Landschaft)', 42: 'BL / SO', 43: 'AG / BL', 44: 'BL (Basel-Landschaft)', 45: 'SO (Solothurn)', 46: 'SO (Solothurn)', 47: 'SO / BL', 48: 'AG (Aargau)', 49: 'AG (Aargau)', 50: 'AG (Aargau)', 51: 'AG (Aargau)', 52: 'AG (Aargau)', 53: 'AG (Aargau)', 54: 'AG (Aargau)', 55: 'AG (Aargau)', 56: 'AG / LU', 57: 'AG / LU', 58: 'LU (Lucerne)', 59: 'LU (Lucerne)', 60: 'LU (Lucerne)', 61: 'LU (Lucerne)', 62: 'LU (Lucerne)', 63: 'ZG / NW / OW', 64: 'SZ / UR', 65: 'TI (Ticino)', 66: 'TI (Ticino)', 67: 'TI (Ticino)', 68: 'TI (Ticino)', 69: 'TI (Ticino)', 70: 'GR (Graubünden)', 71: 'GR (Graubünden)', 72: 'GR (Graubünden)', 73: 'GR (Graubünden)', 74: 'GR (Graubünden)', 75: 'GR (Graubünden)', 76: 'GR (Graubünden)', 77: 'GR (Graubünden)', 78: 'GR (Graubünden)', 79: 'GR (Graubünden)', 80: 'ZH (Zürich)', 81: 'ZH / AG', 82: 'SH / ZH', 83: 'ZH / TG', 84: 'ZH (Zürich)', 85: 'TG (Thurgau)', 86: 'ZH (Zürich)', 87: 'GL / ZH', 88: 'SZ / ZG / GL', 89: 'ZH / AG', 90: 'SG (St. Gallen)', 91: 'AR / SG', 92: 'SG / TG', 93: 'TG (Thurgau)', 94: 'SG / AR', 95: 'TG / SG', 96: 'SG (St. Gallen)', 97: 'SG (St. Gallen)', 98: 'SG (St. Gallen)', 99: 'SG (St. Gallen)'
+        };
+        
+        const PLACE_MAP = {
+            1000: 'Lausanne', 1003: 'Lausanne', 1007: 'Lausanne', 1010: 'Lausanne', 1020: 'Renens VD', 1023: 'Crissier', 1030: 'Bussigny', 1095: 'Lutry', 1110: 'Morges', 1180: 'Rolle', 1302: 'Vufflens-la-Ville', 1337: 'Vallorbe', 1400: 'Yverdon-les-Bains', 1530: 'Payerne', 1607: 'Palézieux', 1800: 'Vevey', 1815: 'Clarens', 1820: 'Montreux', 1934: 'Le Châble',
+            1200: 'Genève', 1211: 'Genève 11', 1227: 'Carouge GE', 1253: 'Vandoeuvres',
+            1700: 'Fribourg', 1723: 'Marly', 1785: 'Murten / Morat',
+            1950: 'Sion', 1964: 'Conthey', 1974: 'Arbaz', 3900: 'Brig', 3920: 'Zermatt', 3930: 'Visp',
+            2000: 'Neuchâtel', 2012: 'Auvernier', 2300: 'La Chaux-de-Fonds', 2740: 'Moutier', 2800: 'Delémont', 2822: 'Courroux', 
+            3000: 'Bern', 3007: 'Bern', 3012: 'Bern', 3014: 'Bern', 3018: 'Bern', 3033: 'Wohlen bei Bern', 3052: 'Zollikofen', 
+            3072: 'Ostermundigen', 3097: 'Liebefeld', 3110: 'Münsingen', 3400: 'Burgdorf', 3600: 'Thun', 3700: 'Spiez', 3800: 'Interlaken',
+            4000: 'Basel', 4051: 'Basel', 4125: 'Riehen', 4410: 'Liestal', 4600: 'Olten', 4702: 'Oensingen', 4800: 'Zofingen',
+            5000: 'Aarau', 5400: 'Baden', 5600: 'Lenzburg',
+            6000: 'Luzern', 6003: 'Luzern', 6010: 'Kriens', 6300: 'Zug', 6460: 'Altdorf', 6500: 'Bellinzona', 6600: 'Locarno', 6900: 'Lugano', 6943: 'Viganello', 
+            7000: 'Chur', 7270: 'Davos Platz', 7500: 'St. Moritz', 7514: 'Sils/Segl',
+            8000: 'Zürich', 8003: 'Zürich', 8048: 'Zürich', 8152: 'Glattbrugg', 8200: 'Schaffhausen', 8304: 'Wallisellen', 8400: 'Winterthur', 8500: 'Frauenfeld', 8600: 'Dübendorf', 8853: 'Lachen', 8903: 'Birmensdorf',
+            9000: 'St. Gallen', 9014: 'St. Gallen', 9050: 'Appenzell', 9200: 'Gossau SG', 9400: 'Rorschach', 9500: 'Wil SG', 9535: 'Wil'
+        };
+
+        function generateLanguageButtons() {
+            languageCheckboxesDiv.innerHTML = LANGUAGE_LIST.map(lang => `
+                <button type="button" 
+                    data-lang-code="${lang.code}" 
+                    id="btn_lang_${lang.code}" 
+                    title="${lang.name}"
+                    class="lang-btn px-3 py-1 text-xs font-semibold rounded-lg shadow-sm bg-gray-200 text-gray-700 hover:bg-gray-300">
+                    ${lang.code}
+                </button>
+            `).join('');
+            
+            setupLanguageButtonListeners();
+        }
+
+        function setupLanguageButtonListeners() {
+            document.querySelectorAll('.lang-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    e.preventDefault(); 
+                    e.target.classList.toggle('is-selected');
+                    
+                    const isSelected = e.target.classList.contains('is-selected');
+                    if (isSelected) {
+                        e.target.classList.remove('bg-gray-200', 'text-gray-700', 'hover:bg-gray-300');
+                        e.target.classList.add('bg-green-600', 'text-white', 'hover:bg-green-700');
+                    } else {
+                        e.target.classList.remove('bg-green-600', 'text-white', 'hover:bg-green-700');
+                        e.target.classList.add('bg-gray-200', 'text-gray-700', 'hover:bg-gray-300');
+                    }
+                });
+            });
+        }
+        
+        generateLanguageButtons();
+
+        function getKantonByPostCode(postCode) {
+            if (!postCode || postCode.length < 2) return '';
+            const prefix = postCode.substring(0, 2);
+            return KANTON_MAP[prefix] || 'Unknown/Mixed Region';
+        }
+
+        function getPlaceByPostCode(postCode) {
+            if (!postCode || postCode.length !== 4) return '';
+            return PLACE_MAP[postCode] || 'Place Unknown';
+        }
+
+        postCodeInput.addEventListener('input', () => {
+            const postCode = postCodeInput.value.replace(/\D/g, '').substring(0, 4); 
+            postCodeInput.value = postCode; 
+            kantonInput.value = getKantonByPostCode(postCode);
+            placeInput.value = getPlaceByPostCode(postCode);
+        });
+
+        function formatBirthDate(dateValue) {
+            if (dateValue && typeof dateValue.toDate === 'function') {
+                return dateValue.toDate().toISOString().split('T')[0];
+            } else if (typeof dateValue === 'string') {
+                return dateValue;
+            }
+            return '';
+        }
+
+        /**
+         * Initializes Firebase and authenticates the user using the listener-first pattern.
+         */
+        async function initializeAppAndAuth() {
+            if (!firebaseConfig) {
+                console.error("Firebase config not available. Cannot initialize.");
+                alertUser('ERROR: Firebase is not configured.', 'bg-red-100', 'text-red-800');
+                return showView('loggedOutView');
+            }
+
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // 1. Set up the state change listener FIRST
+                onAuthStateChanged(auth, (user) => {
+                    // CRITICAL: Stop previous listener if it exists
+                    if (unsubscribeLeads) {
+                        unsubscribeLeads();
+                        unsubscribeLeads = null;
+                    }
+
+                    if (user) {
+                        // Successfully authenticated
+                        userId = user.uid;
+                        userIdDisplay.textContent = userId;
+                        isAuthReady = true;
+
+                        // Setup collection reference
+                        const path = `artifacts/${appId}/users/${userId}/leads`;
+                        leadsCollectionRef = collection(db, path);
+
+                        // Start listening and save the unsubscribe function
+                        unsubscribeLeads = listenForLeads();
+                        showView('leadsTableView');
+
+                    } else {
+                        // User is NOT authenticated (initial failure or explicit signout)
+                        userId = null;
+                        isAuthReady = false;
+                        userIdDisplay.textContent = 'Signed Out';
+                        loadingIndicator.textContent = 'User not authenticated. Please refresh.';
+                        
+                        // CRITICAL FIX: If no user is present, show the logged out view.
+                        showView('loggedOutView'); 
+                    }
+                });
+
+                // 2. Trigger the initial sign-in attempt which will then trigger the listener
+                if (initialAuthToken) {
+                    // Attempt Custom Token sign-in
+                    await signInWithCustomToken(auth, initialAuthToken).catch(async (err) => {
+                        console.error("Custom token sign-in failed, falling back to anonymous.", err);
+                        // If custom token fails, fall back to anonymous, which triggers onAuthStateChanged again.
+                        await signInAnonymously(auth);
+                    });
+                } else {
+                    // Fall back to Anonymous sign-in
+                    await signInAnonymously(auth);
+                }
+
+            } catch (error) {
+                // Catches critical errors during Firebase initialization itself (e.g., bad config)
+                console.error("Error during Firebase initialization:", error);
+                alertUser(`CRITICAL ERROR during initialization: ${error.message}.`, 'bg-red-100', 'text-red-800');
+                // Show the logged out view as a failure state
+                showView('loggedOutView');
+            }
+        }
+
+        window.expandLead = (lead) => {
+            const detailAddress = document.getElementById('detailAddress');
+            const detailPostCodePlace = document.getElementById('detailPostCodePlace');
+            const detailKanton = document.getElementById('detailKanton');
+            const detailBirthDate = document.getElementById('detailBirthDate');
+            const detailKK = document.getElementById('detailKK');
+            const detailMedical = document.getElementById('detailMedical');
+            const detailLanguages = document.getElementById('detailLanguages');
+            
+            expandedLeadName.textContent = lead.fullName;
+            detailAddress.textContent = `${lead.address} ${lead.houseNumber || ''}`;
+            detailPostCodePlace.textContent = `${lead.postCode} ${lead.place}`;
+            detailKanton.textContent = lead.kanton;
+            detailBirthDate.textContent = lead.birthDate;
+            detailKK.textContent = lead.kk;
+            detailMedical.textContent = lead.medicalCondition;
+
+            detailLanguages.innerHTML = '';
+            const spokenLanguages = LANGUAGE_LIST.filter(lang => lead.languages?.[lang.code] === true);
+            
+            if (spokenLanguages.length > 0) {
+                detailLanguages.classList.remove('text-gray-500');
+                spokenLanguages.forEach(lang => {
+                    const chip = document.createElement('span');
+                    chip.className = 'px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium shadow-sm';
+                    chip.textContent = lang.name;
+                    detailLanguages.appendChild(chip);
+                });
+            } else {
+                detailLanguages.textContent = 'No languages specified.';
+                detailLanguages.classList.add('text-gray-500');
+            }
+            
+            detailEditButton.onclick = () => {
+                editLead(lead);
+            };
+
+            showView('expandedLeadView');
+        };
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!userId || !isAuthReady) {
+                alertUser('Error: Authentication not ready. Please wait a moment.', 'bg-red-100', 'text-red-800');
+                return;
+            }
+
+            const leadId = document.getElementById('leadId').value;
+            
+            const languages = {};
+            document.querySelectorAll('.lang-btn').forEach(button => {
+                const code = button.getAttribute('data-lang-code');
+                languages[code] = button.classList.contains('is-selected');
+            });
+
+            const data = {
+                fullName: document.getElementById('fullName').value.trim(),
+                address: document.getElementById('address').value.trim(),
+                houseNumber: document.getElementById('houseNumber').value.trim(),
+                postCode: document.getElementById('postCode').value.trim(),
+                kanton: document.getElementById('kanton').value.trim(),
+                place: document.getElementById('place').value.trim(), 
+                birthDate: document.getElementById('birthDate').value, 
+                kk: document.getElementById('kk').value,
+                medicalCondition: document.getElementById('medicalCondition').value,
+                languages: languages,
+                timestamp: serverTimestamp()
+            };
+            
+            const requiredFields = [data.fullName, data.address, data.postCode, data.kanton, data.place, data.birthDate, data.kk, data.medicalCondition];
+            if (requiredFields.some(value => value === '')) {
+                 alertUser('Please ensure all required fields are filled. Kanton and Place should auto-fill if Post Code is valid.', 'bg-red-100', 'text-red-800');
+                 return;
+            }
+
+            try {
+                if (leadId) {
+                    const leadDocRef = doc(db, leadsCollectionRef.path, leadId);
+                    await setDoc(leadDocRef, data, { merge: true });
+                    alertUser('Lead updated successfully!', 'bg-yellow-100', 'text-yellow-800');
+                    
+                } else {
+                    await addDoc(leadsCollectionRef, data);
+                    alertUser('Lead added successfully!', 'bg-green-100', 'text-green-800');
+                }
+                
+                resetForm();
+                showView('leadsTableView'); 
+
+            } catch (error) {
+                console.error("Error saving lead:", error);
+                alertUser(`Error saving data: ${error.message}`, 'bg-red-100', 'text-red-800');
+            }
+        });
+
+        window.editLead = (lead) => {
+            showView('addLeadView'); 
+
+            document.getElementById('leadId').value = lead.id;
+            document.getElementById('fullName').value = lead.fullName;
+            document.getElementById('address').value = lead.address;
+            document.getElementById('houseNumber').value = lead.houseNumber;
+            document.getElementById('postCode').value = lead.postCode;
+            document.getElementById('kanton').value = lead.kanton || ''; 
+            document.getElementById('place').value = lead.place || '';
+            document.getElementById('birthDate').value = lead.birthDate; 
+            document.getElementById('kk').value = lead.kk; 
+            document.getElementById('medicalCondition').value = lead.medicalCondition;
+            
+            LANGUAGE_LIST.forEach(lang => {
+                const button = document.getElementById(`btn_lang_${lang.code}`);
+                const isSpoken = lead.languages?.[lang.code] === true;
+                
+                button.classList.remove('is-selected', 'bg-green-600', 'text-white', 'hover:bg-green-700');
+                button.classList.add('bg-gray-200', 'text-gray-700', 'hover:bg-gray-300');
+                
+                if (isSpoken) {
+                    button.classList.add('is-selected', 'bg-green-600', 'text-white', 'hover:bg-green-700');
+                    button.classList.remove('bg-gray-200', 'text-gray-700', 'hover:bg-gray-300');
+                }
+            });
+
+            formTitle.textContent = `Edit Lead: ${lead.fullName}`;
+            buttonText.textContent = 'Save Changes';
+            submitButton.classList.remove('bg-green-600', 'hover:bg-green-700');
+            submitButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            
+            alertUser('Editing mode active. Make changes and click "Save Changes".', 'bg-blue-100', 'text-blue-800');
+        };
+        
+        window.deleteLead = (leadId, leadName) => {
+            document.getElementById('modalLeadId').value = leadId;
+            document.getElementById('modalLeadName').textContent = leadName;
+            deleteModal.classList.remove('hidden');
+        };
+
+        window.closeDeleteModal = () => {
+            deleteModal.classList.add('hidden');
+        };
+
+        window.confirmDelete = async () => {
+            closeDeleteModal();
+            const leadId = document.getElementById('modalLeadId').value;
+            if (!leadId) return;
+
+            try {
+                const leadDocRef = doc(db, leadsCollectionRef.path, leadId);
+                await deleteDoc(leadDocRef);
+                alertUser('Lead deleted successfully.', 'bg-red-100', 'text-red-800');
+            } catch (error) {
+                console.error("Error deleting lead:", error);
+                alertUser(`Error deleting data: ${error.message}`, 'bg-red-100', 'text-red-800');
+            }
+        };
+        
+        function listenForLeads() {
+            if (!leadsCollectionRef) {
+                loadingIndicator.textContent = "Error: Collection path not set.";
+                return () => {}; 
+            }
+
+            const q = query(leadsCollectionRef); 
+
+            return onSnapshot(q, (snapshot) => {
+                loadingIndicator.classList.add('hidden');
+                const leads = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    leads.push({
+                        id: doc.id,
+                        ...data,
+                        birthDate: formatBirthDate(data.birthDate) 
+                    });
+                });
+                
+                // Client-side sort by timestamp (latest first)
+                leads.sort((a, b) => (b.timestamp?.toDate() || 0) - (a.timestamp?.toDate() || 0));
+
+                renderLeads(leads);
+            }, (error) => {
+                console.error("Error fetching leads:", error);
+                loadingIndicator.classList.add('hidden');
+                if (error.code === 'permission-denied') {
+                     alertUser(`Permission Denied. Please wait for the application to authenticate or refresh the page.`, 'bg-red-100', 'text-red-800');
+                } else {
+                     alertUser(`Failed to load leads: ${error.message}`, 'bg-red-100', 'text-red-800');
+                }
+            });
+        }
+
+        function renderLeads(leads) {
+            tableBody.innerHTML = ''; 
+
+            if (leads.length === 0) {
+                noLeadsMessage.classList.remove('hidden');
+            } else {
+                noLeadsMessage.classList.add('hidden');
+                leads.forEach(lead => {
+                    const row = document.createElement('tr');
+                    row.classList.add('hover:bg-gray-100', 'transition', 'duration-150');
+                    
+                    const leadJson = JSON.stringify(lead).replace(/'/g, "\\'"); 
+
+                    const rowContent = `
+                        <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${lead.fullName}</td>
+                        <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-purple-600">${lead.kanton || '-'}</td>
+                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${lead.birthDate}</td>
+                        <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-blue-600">${lead.kk}</td>
+                        <td class="px-3 py-4 whitespace-nowrap text-center text-sm font-medium">
+                            <button 
+                                onclick='expandLead(${leadJson})' 
+                                class="text-green-600 hover:text-green-900 mr-1 p-1 rounded hover:bg-green-50 transition duration-150">
+                                Expand
+                            </button>
+                            <button 
+                                onclick='editLead(${leadJson})' 
+                                class="text-indigo-600 hover:text-indigo-900 mr-1 p-1 rounded hover:bg-indigo-50 transition duration-150">
+                                Edit
+                            </button>
+                            <button 
+                                onclick="deleteLead('${lead.id}', '${lead.fullName}')" 
+                                class="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition duration-150">
+                                Delete
+                            </button>
+                        </td>
+                    `;
+                    row.innerHTML = rowContent;
+                    tableBody.appendChild(row);
+                });
+            }
+        }
+
+        window.resetForm = () => {
+            form.reset();
+            document.getElementById('leadId').value = '';
+            
+            kantonInput.value = '';
+            placeInput.value = '';
+            
+            document.querySelectorAll('.lang-btn').forEach(button => {
+                button.classList.remove('is-selected', 'bg-green-600', 'text-white', 'hover:bg-green-700');
+                button.classList.add('bg-gray-200', 'text-gray-700', 'hover:bg-gray-300');
+            });
+
+            formTitle.textContent = 'Add New Lead';
+            buttonText.textContent = 'Add Lead';
+            submitButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            submitButton.classList.add('bg-green-600', 'hover:bg-green-700');
+        }
+
+        function alertUser(message, bgColor, textColor) {
+            statusDiv.textContent = message;
+            statusDiv.classList.remove('hidden', 'bg-green-100', 'text-green-800', 'bg-red-100', 'text-red-800', 'bg-blue-100', 'text-blue-800', 'bg-yellow-100', 'text-yellow-800');
+            statusDiv.classList.add(bgColor, textColor);
+            
+            setTimeout(() => {
+                statusDiv.classList.add('hidden');
+            }, 3000);
+        }
+        
+        /**
+         * Handles user logout.
+         */
+        window.logout = async () => {
+             if (auth) {
+                try {
+                    // Stop listening to data changes immediately upon logout
+                    if (unsubscribeLeads) {
+                        unsubscribeLeads();
+                        unsubscribeLeads = null;
+                    }
+
+                    // Sign out the user from Firebase, which triggers onAuthStateChanged(null)
+                    await signOut(auth);
+                    
+                    // Clear local data displays (onAuthStateChanged handles the view change)
+                    tableBody.innerHTML = '';
+                    userIdDisplay.textContent = 'Signed Out';
+
+                } catch (error) {
+                    console.error("Logout error:", error);
+                    alertUser(`Logout failed: ${error.message}`, 'bg-red-100', 'text-red-800');
+                }
+            }
+        }
+
+        // Initialize the application
+        initializeAppAndAuth();
+    </script>
+</body>
+</html>

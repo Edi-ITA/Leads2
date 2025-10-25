@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Page</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'primary-blue': '#3b82f6',
+                        'primary-dark': '#1e3a8a',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom styles */
+        body { scrollbar-gutter: stable; }
+        .message-box {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+            pointer-events: none;
+        }
+        .message-box.show {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center font-sans p-4">
+
+    <!-- Main container -->
+    <div class="bg-white shadow-2xl rounded-xl p-8 w-full max-w-md border border-gray-200 transform transition duration-500 hover:scale-[1.01]">
+        
+        <!-- LOGIN VIEW -->
+        <div id="loginView">
+            <h2 class="text-3xl font-extrabold text-gray-900 text-center mb-6">
+                Welcome Back
+            </h2>
+            <p class="text-center text-gray-500 mb-8">
+                Log in to access the dashboard.
+            </p>
+
+            <form id="loginForm" onsubmit="event.preventDefault(); handleLogin();" class="space-y-6">
+                <!-- Username/Email -->
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-700 mb-1">
+                        Username or Email
+                    </label>
+                    <input type="text" id="username" name="username" required
+                           class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-blue focus:border-primary-blue transition duration-150 ease-in-out"
+                           placeholder="you@example.com">
+                </div>
+
+                <!-- Password -->
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
+                        Password
+                    </label>
+                    <input type="password" id="password" name="password" required
+                           class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-blue focus:border-primary-blue transition duration-150 ease-in-out"
+                           placeholder="••••••••">
+                </div>
+
+                <!-- Other Options -->
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <input id="remember-me" name="remember-me" type="checkbox"
+                               class="h-4 w-4 text-primary-blue focus:ring-primary-blue border-gray-300 rounded cursor-pointer">
+                        <label for="remember-me" class="ml-2 block text-sm text-gray-900">
+                            Remember me
+                        </label>
+                    </div>
+
+                    <div class="text-sm">
+                        <a href="#" class="font-medium text-primary-blue hover:text-primary-dark transition duration-150 ease-in-out">
+                            Forgot your password?
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Login Button -->
+                <div>
+                    <button type="submit"
+                            class="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-md text-sm font-medium text-white bg-primary-blue hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-blue transition duration-150 ease-in-out">
+                        Log In
+                    </button>
+                </div>
+            </form>
+
+            <div class="mt-8 text-center text-sm text-gray-600">
+                Don't have an account?
+                <a href="#" class="font-medium text-primary-blue hover:text-primary-dark transition duration-150 ease-in-out">
+                    Sign Up
+                </a>
+            </div>
+        </div>
+
+    </div>
+    
+    <!-- Message box (replaces alert()) -->
+    <div id="messageBox" class="message-box fixed top-0 left-1/2 -translate-x-1/2 mt-4 opacity-0 transform -translate-y-full p-4 rounded-lg shadow-xl text-white z-50 transition duration-300 ease-in-out min-w-[300px] text-center">
+        <!-- Message content goes here -->
+    </div>
+
+
+    <script>
+        // Global function to display messages instead of alert()
+        function showMessageBox(message, isError = false) {
+            const msgBox = document.getElementById('messageBox');
+            msgBox.textContent = message;
+
+            // Apply styles based on success or error
+            if (isError) {
+                msgBox.className = 'message-box fixed top-0 left-1/2 -translate-x-1/2 mt-4 p-4 rounded-lg shadow-xl text-white z-50 bg-red-600';
+            } else {
+                msgBox.className = 'message-box fixed top-0 left-1/2 -translate-x-1/2 mt-4 p-4 rounded-lg shadow-xl text-white z-50 bg-green-500';
+            }
+
+            // Show message box
+            msgBox.classList.add('show');
+
+            // Auto-hide after 3 seconds
+            setTimeout(() => {
+                msgBox.classList.remove('show');
+            }, 3000);
+        }
+
+        // Main logic for handling login
+        function handleLogin() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const form = document.getElementById('loginForm');
+
+            if (!username || !password) {
+                showMessageBox("Please enter both username/email and password.", true);
+                return;
+            }
+
+            // --- Authentication Simulation ---
+            // Valid credentials: username = "demo", password = "password"
+            if (username === "demo" && password === "password") {
+                showMessageBox("Login successful! Redirecting...", false);
+                
+                // 1. Set session state
+                sessionStorage.setItem('isLoggedIn', 'true');
+                form.reset();
+                
+                // 2. Redirect user to the protected page
+                setTimeout(() => {
+                    // Redirect to dashboard.html
+                    window.location.href = 'dashboard.html'; 
+                }, 500); 
+
+            } else if (username && password) {
+                // Generic error for all other combinations
+                showMessageBox("Invalid credentials. Please try again.", true);
+            }
+            // --- End simulation ---
+        }
+
+        // No status check on load, as this is the login page.
+    </script>
+</body>
+</html>
