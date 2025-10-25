@@ -63,9 +63,16 @@
                 </button>
             </nav>
 
-            <div class="text-sm text-gray-600">
-                <p>Logged in User ID:</p>
-                <p id="userIdDisplay" class="font-mono text-xs bg-gray-100 p-1 rounded"></p>
+            <!-- User ID and Logout Button (Top Right Corner) -->
+            <div class="flex flex-col items-end space-y-2">
+                <div class="text-sm text-gray-600 text-right">
+                    <p>Logged in User ID:</p>
+                    <p id="userIdDisplay" class="font-mono text-xs bg-gray-100 p-1 rounded"></p>
+                </div>
+                <button onclick="logout()" 
+                        class="text-red-500 hover:text-red-700 text-sm font-medium transition duration-150 py-1 px-3 rounded-lg border border-red-200 hover:bg-red-50">
+                    Log Out
+                </button>
             </div>
         </header>
 
@@ -326,12 +333,7 @@
             </div>
         </div>
 
-        <!-- Logout button for completeness -->
-        <div class="mt-8 text-center" id="logoutButtonContainer">
-            <button onclick="logout()" class="text-red-500 hover:text-red-700 text-sm font-medium transition duration-150">
-                Log Out
-            </button>
-        </div>
+        <!-- The previous location of the logout button is removed entirely -->
     </div>
     
     <!-- ============================================== -->
@@ -550,6 +552,7 @@
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
+                // setLogLevel('debug'); // Uncomment for detailed logs
 
                 // 1. Set up the state change listener FIRST
                 onAuthStateChanged(auth, (user) => {
@@ -557,6 +560,7 @@
                     if (unsubscribeLeads) {
                         unsubscribeLeads();
                         unsubscribeLeads = null;
+                        // console.log("Unsubscribed from old listener.");
                     }
 
                     if (user) {
@@ -564,6 +568,7 @@
                         userId = user.uid;
                         userIdDisplay.textContent = userId;
                         isAuthReady = true;
+                        // console.log("Auth state changed: User is IN", userId);
 
                         // Setup collection reference
                         const path = `artifacts/${appId}/users/${userId}/leads`;
@@ -579,6 +584,7 @@
                         isAuthReady = false;
                         userIdDisplay.textContent = 'Signed Out';
                         loadingIndicator.textContent = 'User not authenticated. Please refresh.';
+                        // console.log("Auth state changed: User is OUT");
                         
                         // CRITICAL FIX: If no user is present, show the logged out view.
                         showView('loggedOutView'); 
@@ -588,6 +594,7 @@
                 // 2. Trigger the initial sign-in attempt which will then trigger the listener
                 if (initialAuthToken) {
                     // Attempt Custom Token sign-in
+                    // console.log("Attempting sign in with custom token...");
                     await signInWithCustomToken(auth, initialAuthToken).catch(async (err) => {
                         console.error("Custom token sign-in failed, falling back to anonymous.", err);
                         // If custom token fails, fall back to anonymous, which triggers onAuthStateChanged again.
@@ -595,6 +602,7 @@
                     });
                 } else {
                     // Fall back to Anonymous sign-in
+                    // console.log("No custom token, attempting anonymous sign in...");
                     await signInAnonymously(auth);
                 }
 
@@ -768,10 +776,11 @@
                 loadingIndicator.textContent = "Error: Collection path not set.";
                 return () => {}; 
             }
-
+            // console.log("Setting up new listener for leads...");
             const q = query(leadsCollectionRef); 
 
             return onSnapshot(q, (snapshot) => {
+                // console.log("Received snapshot with", snapshot.docs.length, "docs.");
                 loadingIndicator.classList.add('hidden');
                 const leads = [];
                 snapshot.forEach(doc => {
@@ -893,6 +902,7 @@
                 }
             }
         }
+
 
         // Initialize the application
         initializeAppAndAuth();
